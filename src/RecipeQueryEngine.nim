@@ -1,4 +1,5 @@
-import db_connector/db_sqlite
+import ./types, ./db
+import cligen
 
 # Add recipe
 
@@ -11,4 +12,4 @@ import db_connector/db_sqlite
 # List recipes
 
 when isMainModule:
-  echo "Hello world!"
+  initializeDatabase()

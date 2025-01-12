@@ -16,4 +16,5 @@ type
     ingredients*: seq[Ingredient]
     instructions*: seq[string]
     preparationTime*: int
+    servings*: int
     tags*: seq[Tag]
