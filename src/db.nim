@@ -7,6 +7,31 @@ import ./types
 
 const databasePath = "data/recipes.db"
 
+template withTransaction*(db: DbConn, body: untyped) =
+  db.exec(sql"BEGIN")
+  try:
+    body
+  except Exception as e:
+    db.exec(sql"ROLLBACK")
+    raise e
+  db.exec(sql"COMMIT")
+
+template withConnection*(variableName: untyped, body: untyped) =
+  let `variableName` {.inject.} = open(databasePath, "", "", "")
+  body
+  variableName.close()
+
+template withDb*(variableName: untyped, body: untyped) =
+  ## Combines `withConnection` and `withTransaction` for convinience
+  withConnection variableName:
+    withTransaction variableName:
+      body
+
+proc clearDatabase*() =
+  withDb db_conn:
+    for table in ["Ingredients", "Tags", "RecipeHasTag", "Recipes"]:
+      db_conn.exec(sql"""DELETE FROM ?""", table)
+
 
 proc initializeDatabase*() =
   let db_conn = open(databasePath, "", "", "")
