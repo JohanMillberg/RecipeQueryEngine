@@ -13,3 +13,6 @@ import cligen
 
 when isMainModule:
   initializeDatabase()
+  let recipes = getRecipeList()
+  for recipe in recipes:
+    echo "Recipe: ", recipe.title

@@ -1,14 +1,15 @@
 import db_connector/db_sqlite
 import std/tables
-import ./types
-import std/strutils
 import std/sequtils
+import std/strutils
+import std/json
+import ./types
 
 const databasePath = "data/recipes.db"
 
-let db_conn = open(databasePath, "", "", "")
 
 proc initializeDatabase*() =
+  let db_conn = open(databasePath, "", "", "")
   let ingredientsInitQuery = sql"""
     CREATE TABLE IF NOT EXISTS Ingredients (
       id       INTEGER PRIMARY KEY,
@@ -48,38 +49,64 @@ proc initializeDatabase*() =
   """
   db_conn.exec(recipeInitQuery)
 
+  db_conn.close()
+
 proc getRecipeList*(): seq[Recipe] =
+  let db_conn = open(databasePath, "", "", "")
   let getRecipesQuery = sql"""
-  SELECT 
+  WITH IngredientLists AS (
+    SELECT
+        recipeId
+      , json_group_array(
+          json_object(
+           'name', name,
+           'amount', amount,
+           'unit', unit
+          )
+        ) as ingredients
+    FROM Ingredients
+    GROUP BY recipeId
+  ),
+  TagList AS (
+    SELECT
+        rht.recipeId
+      , json_group_array(
+          json_object(
+            'id', t.id,
+            'name', t.name
+          )
+        ) as tags
+    FROM RecipeHasTag rht
+    INNER JOIN Tags t on t.id = rht.tagId
+    GROUP BY rht.recipeId
+  )
+  SELECT
      r.id
    , r.title
    , r.timeInMinutes
    , r.instructions
    , r.servings
-   , i.name
-   , i.amount
-   , i.unit
+   , il.ingredients
+   , COALESCE(tl.tags, '[]') as tags
   FROM Recipes r
-  INNER JOIN Ingredients i ON i.recipeId = r.id
+  INNER JOIN IngredientLists il ON il.recipeId = r.id
+  INNER JOIN TagList tl ON tl.recipeId = r.id
   """
 
-  var recipes: Table[int, Recipe]
+  var recipes: seq[Recipe] = @[]
   for row in db_conn.fastRows(getRecipesQuery):
-    let id = row[0].parseInt
-    if id notin recipes:
-      recipes[id] = Recipe(
-        id: id,
-        title: row[1],
-        preparationTime: row[2].parseInt,
-        instructions: splitLines(row[3]),
-        servings: row[4].parseInt,
-      )
-    let ingredient = Ingredient(
-      name: row[5],
-      amount: row[6].parseInt,
-      unit: row[7]
+    let recipe = Recipe(
+      id: row[0].parseInt,
+      title: row[1],
+      preparationTime: row[2].parseInt,
+      instructions: row[3].splitLines,
+      servings: row[4].parseInt,
+      ingredients: parseJson(row[5]).to(seq[Ingredient]),
+      tags: parseJson(row[6]).to(seq[Tag])
     )
 
-    recipes[id].ingredients.add ingredient
+    recipes.add recipe
 
-  return recipes.values.toSeq
+  db_conn.close()
+
+  return recipes
