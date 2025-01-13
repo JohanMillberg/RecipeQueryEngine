@@ -1,7 +1,17 @@
 import ./types, ./db
 import cligen
+import jsony
+
+proc readRecipeFile(file_path: string): Recipe =
+  let content: string = readFile(file_path)
+  let recipe = content.fromJson(Recipe)
+  return recipe
 
 # Add recipe
+proc addRecipe(text_file_path: string) =
+  let recipe = readRecipeFile(text_file_path)
+  echo recipe
+  recipe.insertRecipe
 
 # Update recipe
 
@@ -23,12 +33,12 @@ proc addExampleRecipe() =
       Ingredient(name: "Eggs", amount: 1000)
     ]
   )
-  exampleRecipe.addRecipe
+  exampleRecipe.insertRecipe
 
 when isMainModule:
   initializeDatabase()
   clearDatabase()
-  addExampleRecipe()
-  let recipes = getRecipeList()
-  for recipe in recipes:
-    echo "Recipe: ", recipe.title
+
+  dispatchMulti([
+    addRecipe
+  ])

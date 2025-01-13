@@ -14,3 +14,4 @@ bin           = @["RecipeQueryEngine"]
 requires "nim >= 2.0.0"
 requires "db_connector"
 requires "cligen"
+requires "jsony"

@@ -1,6 +1,4 @@
 import db_connector/db_sqlite
-import std/tables
-import std/sequtils
 import std/strutils
 import std/json
 import ./types
@@ -11,9 +9,9 @@ template withTransaction*(db: DbConn, body: untyped) =
   db.exec(sql"BEGIN")
   try:
     body
-  except Exception as e:
+  except Exception:
     db.exec(sql"ROLLBACK")
-    raise e
+    raise
   db.exec(sql"COMMIT")
 
 template withConnection*(variableName: untyped, body: untyped) =
@@ -136,9 +134,9 @@ proc getRecipeList*(): seq[Recipe] =
 
     return recipes
 
-proc addRecipe*(recipe: Recipe) =
+proc insertRecipe*(recipe: Recipe) =
   withDb db_conn:
-    let addRecipeQuery = sql"""
+    let insertRecipeQuery = sql"""
     INSERT INTO Recipes (
       title,
       instructions,
@@ -152,14 +150,14 @@ proc addRecipe*(recipe: Recipe) =
       ?
     )
     """
-    let recipeId = db_conn.insertId(addRecipeQuery,
+    let recipeId = db_conn.insertId(insertRecipeQuery,
       recipe.title,
       recipe.instructions.join("\n"),
       recipe.preparationTime,
       recipe.servings
     )
 
-    let addIngredientQuery = sql"""
+    let insertIngredientQuery = sql"""
       INSERT INTO Ingredients (
         name,
         recipeId,
@@ -173,20 +171,24 @@ proc addRecipe*(recipe: Recipe) =
       )
     """
     for ingredient in recipe.ingredients:
-      discard db_conn.insertId(addIngredientQuery,
+      discard db_conn.insertId(insertIngredientQuery,
         ingredient.name,
         recipeId,
         ingredient.amount,
         ingredient.unit
       )
-    
-    # Add tag if it doesn't already exist
-    let addTagQuery = sql"""
+
+    # insert tag if it doesn't already exist
+    let insertTagQuery = sql"""
       INSERT OR IGNORE INTO Tags (name)
       VALUES (?)
-      RETURNING id
     """
-    let addRecipeTagQuery = sql"""
+    let selectTagQuery = sql"""
+      SELECT id
+      FROM Tags
+      WHERE name = (?)
+    """
+    let insertRecipeTagQuery = sql"""
       INSERT INTO RecipeHasTag (
         recipeId,
         tagId
@@ -197,7 +199,8 @@ proc addRecipe*(recipe: Recipe) =
     """
 
     for tag in recipe.tags:
-      let tagId = db_conn.getRow(addTagQuery, tag.name)[0].parseInt
-      discard db_conn.insertId(addRecipeTagQuery, recipeId, tagId)
+      db_conn.exec(insertTagQuery, tag.name)
+      let tagId = db_conn.getRow(selectTagQuery, tag.name)[0].parseInt
+      discard db_conn.insertId(insertRecipeTagQuery, recipeId, tagId)
 
-    
+
