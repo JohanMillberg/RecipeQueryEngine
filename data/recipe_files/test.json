@@ -1,0 +1,21 @@
+{
+  "title": "Test Recipe",
+  "instructions": [
+    "Add food",
+    "Enjoy"
+  ],
+  "preparationTime": 1000000,
+  "servings": 2,
+  "tags": [
+    {
+      "name": "Food"
+    }
+  ],
+  "ingredients": [
+    {
+      "name": "things",
+      "amount": 2,
+      "unit": "kWmWbs"
+    }
+  ]
+}
