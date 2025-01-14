@@ -1,25 +1,34 @@
-import ./types, ./db
+import ./types, ./db, ./utils
 import cligen
 import jsony
 
-proc readRecipeFile(file_path: string): Recipe =
-  let content: string = readFile(file_path)
+proc readRecipeFile(filePath: string): Recipe =
+  let content: string = readFile(filePath)
   let recipe = content.fromJson(Recipe)
   return recipe
 
 # Add recipe
-proc addRecipe(text_file_path: string) =
-  let recipe = readRecipeFile(text_file_path)
+proc addRecipe(textFilePath: string) =
+  let recipe = readRecipeFile(textFilePath)
   echo recipe
   recipe.insertRecipe
 
 # Update recipe
 
 # Delete recipe
+proc deleteRecipe(recipeId: int) =
+  withTimer:
+    deleteRecipeWithId(recipeId)
 
 # Search recipes
 
 # List recipes
+proc listAllRecipes() =
+  withTimer:
+    let recipes = getRecipeList()
+    for recipe in recipes:
+      echo recipe
+      echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 
 proc addExampleRecipe() =
   let exampleRecipe = Recipe(
@@ -37,8 +46,10 @@ proc addExampleRecipe() =
 
 when isMainModule:
   initializeDatabase()
-  clearDatabase()
+  # clearDatabase()
 
-  dispatchMulti([
-    addRecipe
-  ])
+  dispatchMulti(
+    [addRecipe],
+    [listAllRecipes],
+    [deleteRecipe]
+  )
