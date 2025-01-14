@@ -28,13 +28,13 @@ template withDb*(variableName: untyped, body: untyped) =
       body
 
 proc clearDatabase*() =
-  withDb db_conn:
+  withDb dbConn:
     for table in ["Ingredients", "Tags", "RecipeHasTag", "Recipes"]:
-      db_conn.exec(sql"""DELETE FROM ?""", table)
+      dbConn.exec(sql"""DELETE FROM ?""", table)
 
 
 proc initializeDatabase*() =
-  withDb db_conn:
+  withDb dbConn:
     let ingredientsInitQuery = sql"""
       CREATE TABLE IF NOT EXISTS Ingredients (
         id       INTEGER PRIMARY KEY,
@@ -44,7 +44,7 @@ proc initializeDatabase*() =
         unit     TEXT
       )
     """
-    db_conn.exec(ingredientsInitQuery)
+    dbConn.exec(ingredientsInitQuery)
 
     let tagInitQuery = sql"""
       CREATE TABLE IF NOT EXISTS Tags (
@@ -52,7 +52,7 @@ proc initializeDatabase*() =
         name TEXT NOT NULL UNIQUE
       )
     """
-    db_conn.exec(tagInitQuery)
+    dbConn.exec(tagInitQuery)
 
     let recipeTagInitQuery = sql"""
       CREATE TABLE IF NOT EXISTS RecipeHasTag (
@@ -61,7 +61,7 @@ proc initializeDatabase*() =
         tagId    INTEGER NOT NULL
       )
     """
-    db_conn.exec(recipeTagInitQuery)
+    dbConn.exec(recipeTagInitQuery)
 
     let recipeInitQuery = sql"""
       CREATE TABLE IF NOT EXISTS Recipes (
@@ -72,10 +72,10 @@ proc initializeDatabase*() =
         servings      INTEGER
       )
     """
-    db_conn.exec(recipeInitQuery)
+    dbConn.exec(recipeInitQuery)
 
 proc getRecipeList*(): seq[Recipe] =
-  withDb db_conn:
+  withDb dbConn:
     let getRecipesQuery = sql"""
     WITH IngredientLists AS (
       SELECT
@@ -119,7 +119,7 @@ proc getRecipeList*(): seq[Recipe] =
     """
 
     var recipes: seq[Recipe] = @[]
-    for row in db_conn.fastRows(getRecipesQuery):
+    for row in dbConn.fastRows(getRecipesQuery):
       let recipe = Recipe(
         id: row[0].parseInt,
         title: row[1],
@@ -135,7 +135,7 @@ proc getRecipeList*(): seq[Recipe] =
     return recipes
 
 proc insertRecipe*(recipe: Recipe) =
-  withDb db_conn:
+  withDb dbConn:
     let insertRecipeQuery = sql"""
     INSERT INTO Recipes (
       title,
@@ -150,7 +150,7 @@ proc insertRecipe*(recipe: Recipe) =
       ?
     )
     """
-    let recipeId = db_conn.insertId(insertRecipeQuery,
+    let recipeId = dbConn.insertId(insertRecipeQuery,
       recipe.title,
       recipe.instructions.join("\n"),
       recipe.preparationTime,
@@ -171,7 +171,7 @@ proc insertRecipe*(recipe: Recipe) =
       )
     """
     for ingredient in recipe.ingredients:
-      discard db_conn.insertId(insertIngredientQuery,
+      discard dbConn.insertId(insertIngredientQuery,
         ingredient.name,
         recipeId,
         ingredient.amount,
@@ -199,8 +199,36 @@ proc insertRecipe*(recipe: Recipe) =
     """
 
     for tag in recipe.tags:
-      db_conn.exec(insertTagQuery, tag.name)
-      let tagId = db_conn.getRow(selectTagQuery, tag.name)[0].parseInt
-      discard db_conn.insertId(insertRecipeTagQuery, recipeId, tagId)
+      dbConn.exec(insertTagQuery, tag.name)
+      let tagId = dbConn.getRow(selectTagQuery, tag.name)[0].parseInt
+      discard dbConn.insertId(insertRecipeTagQuery, recipeId, tagId)
 
+proc deleteRecipeWithId*(recipeId: int) =
+  withDb dbConn:
+    let deleteQueryRecipes = sql"""
+      DELETE FROM Recipes
+      WHERE id = (?)
+    """
+    let deleteQueryIngredients = sql"""
+      DELETE FROM Ingredients
+      WHERE recipeId = (?)
+    """
+    let deleteQueryTags = sql"""
+      DELETE FROM RecipeHasTag
+      WHERE recipeId = (?);
 
+      DELETE FROM Tags
+      WHERE id NOT IN (
+        SELECT DISTINCT tagId
+        FROM RecipeHasTag
+      )
+    """
+
+    let queries = @[
+      deleteQueryRecipes,
+      deleteQueryIngredients,
+      deleteQueryTags
+    ]
+
+    for query in queries:
+      dbConn.exec(query, recipeId)

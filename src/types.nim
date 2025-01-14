@@ -34,8 +34,8 @@ proc `$`*(recipe: Recipe): string =
   let tagNames = recipe.tags.mapIt(it.name)
   let indent = " ".repeat(IndentSize)
   result = &"""
-    Recipe: {recipe.title}
-    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    Recipe: {recipe.title} (Id: {recipe.id})
+
     Preparation Time: {recipe.preparationTime} minutes
     Servings: {recipe.servings}
 
