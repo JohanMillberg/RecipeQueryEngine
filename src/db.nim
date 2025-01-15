@@ -3,7 +3,6 @@ import std/strutils
 import std/json
 import ./types
 
-const databasePath = "data/recipes.db"
 
 template withTransaction*(db: DbConn, body: untyped) =
   db.exec(sql"BEGIN")
@@ -14,27 +13,15 @@ template withTransaction*(db: DbConn, body: untyped) =
     raise
   db.exec(sql"COMMIT")
 
-template withConnection*(variableName: untyped, body: untyped) =
-  let `variableName` {.inject.} = open(databasePath, "", "", "")
-  try:
-    body
-  finally:
-    variableName.close()
 
-template withDb*(variableName: untyped, body: untyped) =
-  ## Combines `withConnection` and `withTransaction` for convinience
-  withConnection variableName:
-    withTransaction variableName:
-      body
-
-proc clearDatabase*() =
-  withDb dbConn:
+proc clearDatabase*(dbConn: DbConn) =
+  withTransaction dbConn:
     for table in ["Ingredients", "Tags", "RecipeHasTag", "Recipes"]:
       dbConn.exec(sql"""DELETE FROM ?""", table)
 
 
-proc initializeDatabase*() =
-  withDb dbConn:
+proc initializeDatabase*(dbConn: DbConn) =
+  withTransaction dbConn:
     let ingredientsInitQuery = sql"""
       CREATE TABLE IF NOT EXISTS Ingredients (
         id       INTEGER PRIMARY KEY,
@@ -74,8 +61,9 @@ proc initializeDatabase*() =
     """
     dbConn.exec(recipeInitQuery)
 
-proc getRecipeList*(): seq[Recipe] =
-  withDb dbConn:
+
+proc getRecipeList*(dbConn: DbConn): seq[Recipe] =
+  withTransaction dbConn:
     let getRecipesQuery = sql"""
     WITH IngredientLists AS (
       SELECT
@@ -134,8 +122,9 @@ proc getRecipeList*(): seq[Recipe] =
 
     return recipes
 
-proc insertRecipe*(recipe: Recipe) =
-  withDb dbConn:
+
+proc insertRecipe*(recipe: Recipe, dbConn: DbConn) =
+  withTransaction dbConn:
     let insertRecipeQuery = sql"""
     INSERT INTO Recipes (
       title,
@@ -203,8 +192,9 @@ proc insertRecipe*(recipe: Recipe) =
       let tagId = dbConn.getRow(selectTagQuery, tag.name)[0].parseInt
       discard dbConn.insertId(insertRecipeTagQuery, recipeId, tagId)
 
-proc deleteRecipeWithId*(recipeId: int) =
-  withDb dbConn:
+
+proc deleteRecipeWithId*(recipeId: int, dbConn: DbConn) =
+  withTransaction dbConn:
     let deleteQueryRecipes = sql"""
       DELETE FROM Recipes
       WHERE id = (?)

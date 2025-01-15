@@ -33,8 +33,15 @@ proc `$`*(recipe: Recipe): string =
   let ingredients = recipe.ingredients.mapIt($it)
   let tagNames = recipe.tags.mapIt(it.name)
   let indent = " ".repeat(IndentSize)
+
+  let idString =
+    if recipe.id == 0:
+      ""
+    else:
+      &"(Id: {recipe.id})"
+
   result = &"""
-    Recipe: {recipe.title} (Id: {recipe.id})
+    Recipe: {recipe.title} {idString}
 
     Preparation Time: {recipe.preparationTime} minutes
     Servings: {recipe.servings}

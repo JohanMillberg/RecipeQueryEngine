@@ -1,6 +1,10 @@
 import ./types, ./db, ./utils
 import cligen
 import jsony
+import db_connector/db_sqlite
+
+const DatabasePath = "data/recipes.db"
+var dbConn* = open(DatabasePath, "", "", "")
 
 proc readRecipeFile(filePath: string): Recipe =
   let content: string = readFile(filePath)
@@ -8,48 +12,37 @@ proc readRecipeFile(filePath: string): Recipe =
   return recipe
 
 # Add recipe
-proc addRecipe(textFilePath: string) =
-  let recipe = readRecipeFile(textFilePath)
+proc addRecipe(jsonFilePath: string) =
+  let recipe = readRecipeFile(jsonFilePath)
   echo recipe
-  recipe.insertRecipe
+  recipe.insertRecipe(dbConn)
 
 # Update recipe
 
 # Delete recipe
 proc deleteRecipe(recipeId: int) =
   withTimer:
-    deleteRecipeWithId(recipeId)
+    deleteRecipeWithId(recipeId, dbConn)
 
 # Search recipes
 
 # List recipes
 proc listAllRecipes() =
   withTimer:
-    let recipes = getRecipeList()
+    let recipes = getRecipeList(dbConn)
     for recipe in recipes:
       echo recipe
       echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 
-proc addExampleRecipe() =
-  let exampleRecipe = Recipe(
-    title: "Test recipe",
-    instructions: @["Instruction1", "Instruction2"],
-    preparationTime: 20,
-    servings: 4,
-    tags: @[Tag(name: "Tag1"), Tag(name: "Tag2")],
-    ingredients: @[
-      Ingredient(name: "Sugar", amount: 2, unit: "dl"),
-      Ingredient(name: "Eggs", amount: 1000)
-    ]
-  )
-  exampleRecipe.insertRecipe
 
 when isMainModule:
-  initializeDatabase()
-  # clearDatabase()
+  initializeDatabase(dbConn)
+  clearDatabase(dbConn)
 
   dispatchMulti(
     [addRecipe],
     [listAllRecipes],
     [deleteRecipe]
   )
+
+  dbConn.close()
