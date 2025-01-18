@@ -30,20 +30,6 @@ proc listAllRecipes() =
       echo recipe
       echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 
-proc addExampleRecipe() =
-  let exampleRecipe = Recipe(
-    title: "Test recipe",
-    instructions: @["Instruction1", "Instruction2"],
-    preparationTime: 20,
-    servings: 4,
-    tags: @[Tag(name: "Tag1"), Tag(name: "Tag2")],
-    ingredients: @[
-      Ingredient(name: "Sugar", amount: 2, unit: "dl"),
-      Ingredient(name: "Eggs", amount: 1000)
-    ]
-  )
-  exampleRecipe.insertRecipe
-
 when isMainModule:
   initializeDatabase()
   clearDatabase()
