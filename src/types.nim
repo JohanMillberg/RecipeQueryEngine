@@ -17,6 +17,7 @@ type
     title*: string
     ingredients*: seq[Ingredient]
     instructions*: seq[string]
+    link*: string
     preparationTime*: int
     servings*: int
     tags*: seq[Tag]
@@ -33,17 +34,35 @@ proc `$`*(recipe: Recipe): string =
   let ingredients = recipe.ingredients.mapIt($it)
   let tagNames = recipe.tags.mapIt(it.name)
   let indent = " ".repeat(IndentSize)
-  result = &"""
-    Recipe: {recipe.title} (Id: {recipe.id})
 
+  let idString =
+    if recipe.id == 0:
+      ""
+    else:
+      &"(Id: {recipe.id})"
+
+  let instructionString =
+    if recipe.instructions == @[]:
+      ""
+    else:
+      &"""Instructions:
+    {BulletPoint}{join(recipe.instructions, "\n" & indent & BulletPoint)}
+      """
+
+  let linkString =
+    if recipe.link == "":
+      ""
+    else:
+      &"Link: {recipe.link}"
+
+  result = &"""
+    Recipe: {recipe.title} {idString}
     Preparation Time: {recipe.preparationTime} minutes
     Servings: {recipe.servings}
 
     Ingredients:
     {BulletPoint}{join(ingredients, "\n" & indent & BulletPoint)}
-
-    Instructions:
-    {BulletPoint}{join(recipe.instructions, "\n" & indent & BulletPoint)}
-
+    {instructionString}
+    {linkString}
     Tags: {join(tagNames, Separator)}
   """

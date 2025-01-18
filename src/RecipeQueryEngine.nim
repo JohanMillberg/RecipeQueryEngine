@@ -8,8 +8,8 @@ proc readRecipeFile(filePath: string): Recipe =
   return recipe
 
 # Add recipe
-proc addRecipe(textFilePath: string) =
-  let recipe = readRecipeFile(textFilePath)
+proc addRecipe(jsonFilePath: string) =
+  let recipe = readRecipeFile(jsonFilePath)
   echo recipe
   recipe.insertRecipe
 
@@ -46,7 +46,7 @@ proc addExampleRecipe() =
 
 when isMainModule:
   initializeDatabase()
-  # clearDatabase()
+  clearDatabase()
 
   dispatchMulti(
     [addRecipe],

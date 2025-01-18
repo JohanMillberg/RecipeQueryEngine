@@ -67,7 +67,8 @@ proc initializeDatabase*() =
       CREATE TABLE IF NOT EXISTS Recipes (
         id            INTEGER PRIMARY KEY,
         title         TEXT NOT NULL,
-        instructions  TEXT NOT NULL,
+        instructions  TEXT,
+        link          TEXT,
         timeInMinutes INTEGER,
         servings      INTEGER
       )
@@ -110,6 +111,7 @@ proc getRecipeList*(): seq[Recipe] =
     , r.title
     , r.timeInMinutes
     , r.instructions
+    , r.link
     , r.servings
     , il.ingredients
     , COALESCE(tl.tags, '[]') as tags
@@ -125,9 +127,10 @@ proc getRecipeList*(): seq[Recipe] =
         title: row[1],
         preparationTime: row[2].parseInt,
         instructions: row[3].splitLines,
-        servings: row[4].parseInt,
-        ingredients: parseJson(row[5]).to(seq[Ingredient]),
-        tags: parseJson(row[6]).to(seq[Tag])
+        link: row[4],
+        servings: row[5].parseInt,
+        ingredients: parseJson(row[6]).to(seq[Ingredient]),
+        tags: parseJson(row[7]).to(seq[Tag])
       )
 
       recipes.add recipe
@@ -140,10 +143,12 @@ proc insertRecipe*(recipe: Recipe) =
     INSERT INTO Recipes (
       title,
       instructions,
+      link,
       timeInMinutes,
       servings
     )
     VALUES (
+      ?,
       ?,
       ?,
       ?,
@@ -153,6 +158,7 @@ proc insertRecipe*(recipe: Recipe) =
     let recipeId = dbConn.insertId(insertRecipeQuery,
       recipe.title,
       recipe.instructions.join("\n"),
+      recipe.link,
       recipe.preparationTime,
       recipe.servings
     )
