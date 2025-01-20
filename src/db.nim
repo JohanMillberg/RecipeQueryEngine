@@ -75,6 +75,7 @@ proc initializeDatabase*() =
     dbConn.exec(recipeInitQuery)
 
 proc getIngredients(dbConn: DbConn, recipeIds: seq[int]): Table[int, seq[Ingredient]] =
+  # CURRENTLY RETURNS EMPTY TABLE, FIX
   let ingredientQuery = sql"""
     SELECT
         recipeId
