@@ -1,5 +1,5 @@
 import db_connector/db_sqlite
-import std/strutils
+import std/[strutils, tables]
 import std/json
 import ./types
 
@@ -31,7 +31,6 @@ proc clearDatabase*() =
   withDb dbConn:
     for table in ["Ingredients", "Tags", "RecipeHasTag", "Recipes"]:
       dbConn.exec(sql"""DELETE FROM ?""", table)
-
 
 proc initializeDatabase*() =
   withDb dbConn:
@@ -75,62 +74,91 @@ proc initializeDatabase*() =
     """
     dbConn.exec(recipeInitQuery)
 
+proc getIngredients(dbConn: DbConn, recipeIds: seq[int]): Table[int, seq[Ingredient]] =
+  let ingredientQuery = sql"""
+    SELECT
+        recipeId
+      , json_group_array(
+          json_object(
+          'id', id,
+          'recipeId', recipeId,
+          'name', name,
+          'amount', amount,
+          'unit', unit
+          )
+        ) as ingredients
+    FROM Ingredients
+    WHERE recipeId IN (?)
+    GROUP BY recipeId
+  """
+
+  var ingredientMap = initTable[int, seq[Ingredient]]()
+  for row in dbConn.fastRows(ingredientQuery, recipeIds.join(", ")):
+    let currentId = row[0].parseInt
+    let ingredients = parseJson(row[1]).to(seq[Ingredient])
+    ingredientMap[currentId] = ingredients
+
+  return ingredientMap
+
+proc getTags(dbConn: DbConn, recipeIds: seq[int]): Table[int, seq[Tag]] =
+  let tagQuery = sql"""
+    SELECT
+        rht.recipeId
+      , json_group_array(
+          json_object(
+            'id', t.id,
+            'name', t.name
+          )
+        ) as tags
+    FROM RecipeHasTag rht
+    INNER JOIN Tags t on t.id = rht.tagId
+    WHERE rht.recipeId IN (?)
+    GROUP BY rht.recipeId
+  """
+
+  var tagMap = initTable[int, seq[Tag]]()
+  for row in dbConn.fastRows(tagQuery, recipeIds.join(", ")):
+    let currentId = row[0].parseInt
+    let tags = parseJson(row[1]).to(seq[Tag])
+    tagMap[currentId] = tags
+
+  return tagMap
+
 proc getRecipeList*(): seq[Recipe] =
   withDb dbConn:
+    var recipeIds: seq[int] = @[]
+    for row in dbConn.fastRows(sql"SELECT id FROM Recipes"):
+      recipeIds.add(row[0].parseInt)
+
+    let ingredientMap = getIngredients(dbConn, recipeIds)
+    let tagMap = getTags(dbConn, recipeIds)
+
+    echo ingredientMap
+    echo tagMap
+
     let getRecipesQuery = sql"""
-    WITH IngredientLists AS (
       SELECT
-          recipeId
-        , json_group_array(
-            json_object(
-            'id', id,
-            'recipeId', recipeId,
-            'name', name,
-            'amount', amount,
-            'unit', unit
-            )
-          ) as ingredients
-      FROM Ingredients
-      GROUP BY recipeId
-    ),
-    TagList AS (
-      SELECT
-          rht.recipeId
-        , json_group_array(
-            json_object(
-              'id', t.id,
-              'name', t.name
-            )
-          ) as tags
-      FROM RecipeHasTag rht
-      INNER JOIN Tags t on t.id = rht.tagId
-      GROUP BY rht.recipeId
-    )
-    SELECT
-      r.id
-    , r.title
-    , r.timeInMinutes
-    , r.instructions
-    , r.link
-    , r.servings
-    , il.ingredients
-    , COALESCE(tl.tags, '[]') as tags
-    FROM Recipes r
-    INNER JOIN IngredientLists il ON il.recipeId = r.id
-    INNER JOIN TagList tl ON tl.recipeId = r.id
+          r.id
+        , r.title
+        , r.timeInMinutes
+        , r.instructions
+        , r.link
+        , r.servings
+      FROM Recipes r
     """
 
     var recipes: seq[Recipe] = @[]
     for row in dbConn.fastRows(getRecipesQuery):
+      let currentId = row[0].parseInt
       let recipe = Recipe(
-        id: row[0].parseInt,
+        id: currentId,
         title: row[1],
         preparationTime: row[2].parseInt,
         instructions: row[3].splitLines,
         link: row[4],
         servings: row[5].parseInt,
-        ingredients: parseJson(row[6]).to(seq[Ingredient]),
-        tags: parseJson(row[7]).to(seq[Tag])
+        ingredients: ingredientMap[currentId],
+        tags: tagMap[currentId]
       )
 
       recipes.add recipe

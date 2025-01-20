@@ -1,6 +1,7 @@
 import ./types, ./db, ./utils
 import cligen
 import jsony
+import std/strutils
 
 proc readRecipeFile(filePath: string): Recipe =
   let content: string = readFile(filePath)
@@ -13,14 +14,23 @@ proc addRecipe(jsonFilePath: string) =
   echo recipe
   recipe.insertRecipe
 
-# Update recipe
-
 # Delete recipe
 proc deleteRecipe(recipeId: int) =
   withTimer:
     deleteRecipeWithId(recipeId)
 
 # Search recipes
+proc searchRecipes(searchText: string, filterType: string) =
+  let filter = parseEnum[FilterType](filterType)
+  case filter
+  of FilterType.title:
+    echo "title"
+  of FilterType.tag:
+    echo "tag"
+  of FilterType.ingredient:
+    echo "ingredient"
+  of FilterType.time:
+    echo "time"
 
 # List recipes
 proc listAllRecipes() =
@@ -32,10 +42,10 @@ proc listAllRecipes() =
 
 when isMainModule:
   initializeDatabase()
-  clearDatabase()
 
   dispatchMulti(
     [addRecipe],
     [listAllRecipes],
-    [deleteRecipe]
+    [deleteRecipe],
+    [searchRecipes],
   )

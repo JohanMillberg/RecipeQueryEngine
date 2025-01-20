@@ -22,6 +22,12 @@ type
     servings*: int
     tags*: seq[Tag]
 
+  FilterType* = enum
+    title = "title"
+    tag = "tag"
+    ingredient = "ingredient"
+    time = "time"
+
 proc `$`*(ingredient: Ingredient): string =
   result = &"{ingredient.amount} {ingredient.unit} {ingredient.name}"
 
