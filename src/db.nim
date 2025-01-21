@@ -1,5 +1,5 @@
 import db_connector/db_sqlite
-import std/[strutils, tables]
+import std/[strutils, tables, sequtils]
 import std/json
 import ./types
 
@@ -74,9 +74,13 @@ proc initializeDatabase*() =
     """
     dbConn.exec(recipeInitQuery)
 
+proc getPlaceholders(numNeeded: int): string =
+  result = "?" & repeat(",?", numNeeded - 1)
+
 proc getIngredients(dbConn: DbConn, recipeIds: seq[int]): Table[int, seq[Ingredient]] =
-  # CURRENTLY RETURNS EMPTY TABLE, FIX
-  let ingredientQuery = sql"""
+  let placeholders = getPlaceholders(recipeIds.len)
+
+  let ingredientQuery = sql("""
     SELECT
         recipeId
       , json_group_array(
@@ -89,12 +93,12 @@ proc getIngredients(dbConn: DbConn, recipeIds: seq[int]): Table[int, seq[Ingredi
           )
         ) as ingredients
     FROM Ingredients
-    WHERE recipeId IN (?)
+    WHERE recipeId IN ($1)
     GROUP BY recipeId
-  """
+  """.format(placeholders))
 
   var ingredientMap = initTable[int, seq[Ingredient]]()
-  for row in dbConn.fastRows(ingredientQuery, recipeIds.join(", ")):
+  for row in dbConn.fastRows(ingredientQuery, recipeIds.mapIt($it)):
     let currentId = row[0].parseInt
     let ingredients = parseJson(row[1]).to(seq[Ingredient])
     ingredientMap[currentId] = ingredients
@@ -102,7 +106,9 @@ proc getIngredients(dbConn: DbConn, recipeIds: seq[int]): Table[int, seq[Ingredi
   return ingredientMap
 
 proc getTags(dbConn: DbConn, recipeIds: seq[int]): Table[int, seq[Tag]] =
-  let tagQuery = sql"""
+  let placeholders = getPlaceholders(recipeIds.len)
+
+  let tagQuery = sql("""
     SELECT
         rht.recipeId
       , json_group_array(
@@ -113,12 +119,12 @@ proc getTags(dbConn: DbConn, recipeIds: seq[int]): Table[int, seq[Tag]] =
         ) as tags
     FROM RecipeHasTag rht
     INNER JOIN Tags t on t.id = rht.tagId
-    WHERE rht.recipeId IN (?)
+    WHERE rht.recipeId IN ($1)
     GROUP BY rht.recipeId
-  """
+  """.format(placeholders))
 
   var tagMap = initTable[int, seq[Tag]]()
-  for row in dbConn.fastRows(tagQuery, recipeIds.join(", ")):
+  for row in dbConn.fastRows(tagQuery, recipeIds.mapIt($it)):
     let currentId = row[0].parseInt
     let tags = parseJson(row[1]).to(seq[Tag])
     tagMap[currentId] = tags
@@ -133,9 +139,6 @@ proc getRecipeList*(): seq[Recipe] =
 
     let ingredientMap = getIngredients(dbConn, recipeIds)
     let tagMap = getTags(dbConn, recipeIds)
-
-    echo ingredientMap
-    echo tagMap
 
     let getRecipesQuery = sql"""
       SELECT
