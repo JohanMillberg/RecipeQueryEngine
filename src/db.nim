@@ -103,7 +103,7 @@ proc getIngredients(dbConn: DbConn, recipeIds: seq[int]): Table[int, seq[Ingredi
     let ingredients = parseJson(row[1]).to(seq[Ingredient])
     ingredientMap[currentId] = ingredients
 
-  return ingredientMap
+  result = ingredientMap
 
 proc getTags(dbConn: DbConn, recipeIds: seq[int]): Table[int, seq[Tag]] =
   let placeholders = getPlaceholders(recipeIds.len)
@@ -129,14 +129,10 @@ proc getTags(dbConn: DbConn, recipeIds: seq[int]): Table[int, seq[Tag]] =
     let tags = parseJson(row[1]).to(seq[Tag])
     tagMap[currentId] = tags
 
-  return tagMap
+  result = tagMap
 
-proc getRecipeList*(): seq[Recipe] =
+proc getRecipeList*(recipeIds: seq[int]): seq[Recipe] =
   withDb dbConn:
-    var recipeIds: seq[int] = @[]
-    for row in dbConn.fastRows(sql"SELECT id FROM Recipes"):
-      recipeIds.add(row[0].parseInt)
-
     let ingredientMap = getIngredients(dbConn, recipeIds)
     let tagMap = getTags(dbConn, recipeIds)
 
@@ -167,25 +163,47 @@ proc getRecipeList*(): seq[Recipe] =
 
       recipes.add recipe
 
-    return recipes
+    result = recipes
+
+proc getAllRecipes*(): seq[Recipe] =
+  withDb dbConn:
+    var recipeIds: seq[int] = @[]
+    for row in dbConn.fastRows(sql"""SELECT id FROM Recipes"""):
+      recipeIds.add row[0].parseInt
+    result = getRecipeList(recipeIds)
+
+
+proc getRecipesByTitle*(title: string): seq[Recipe] =
+  withDb dbConn:
+    let recipeQuery = sql"""
+      SELECT
+          id
+      FROM Recipes
+      WHERE title like '%?%'
+    """
+    var recipeIds: seq[int] = @[]
+    for row in dbConn.fastRows(recipeQuery, title):
+      recipeIds.add row[0].parseInt
+
+    result = getRecipeList(recipeIds)
 
 proc insertRecipe*(recipe: Recipe) =
   withDb dbConn:
     let insertRecipeQuery = sql"""
-    INSERT INTO Recipes (
-      title,
-      instructions,
-      link,
-      timeInMinutes,
-      servings
-    )
-    VALUES (
-      ?,
-      ?,
-      ?,
-      ?,
-      ?
-    )
+      INSERT INTO Recipes (
+        title,
+        instructions,
+        link,
+        timeInMinutes,
+        servings
+      )
+      VALUES (
+        ?,
+        ?,
+        ?,
+        ?,
+        ?
+      )
     """
     let recipeId = dbConn.insertId(insertRecipeQuery,
       recipe.title,

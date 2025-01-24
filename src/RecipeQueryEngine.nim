@@ -35,7 +35,7 @@ proc searchRecipes(searchText: string, filterType: string) =
 # List recipes
 proc listAllRecipes() =
   withTimer:
-    let recipes = getRecipeList()
+    let recipes = getAllRecipes()
     for recipe in recipes:
       echo recipe
       echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
