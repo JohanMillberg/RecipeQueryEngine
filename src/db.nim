@@ -1,5 +1,5 @@
 import db_connector/db_sqlite
-import std/[strutils, tables, sequtils]
+import std/[strutils, tables, sequtils, strformat]
 import std/json
 import ./types
 
@@ -173,18 +173,19 @@ proc getAllRecipes*(): seq[Recipe] =
     result = getRecipeList(recipeIds)
 
 
-proc getRecipesByTitle*(title: string): seq[Recipe] =
+proc getRecipesByTitle*(filter: string): seq[Recipe] =
   withDb dbConn:
+    let formattedFilter: string = &"%{filter}%"
     let recipeQuery = sql"""
       SELECT
           id
       FROM Recipes
-      WHERE title like '%?%'
+      WHERE title like ?
     """
     var recipeIds: seq[int] = @[]
-    for row in dbConn.fastRows(recipeQuery, title):
+    for row in dbConn.fastRows(recipeQuery, formattedFilter):
       recipeIds.add row[0].parseInt
-
+    echo recipeIds
     result = getRecipeList(recipeIds)
 
 proc insertRecipe*(recipe: Recipe) =
