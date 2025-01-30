@@ -75,7 +75,10 @@ proc initializeDatabase*() =
     dbConn.exec(recipeInitQuery)
 
 proc getPlaceholders(numNeeded: int): string =
-  result = "?" & repeat(",?", numNeeded - 1)
+  if numNeeded == 0:
+    result = ""
+  else:
+    result = "?" & repeat(",?", numNeeded - 1)
 
 proc getIngredients(dbConn: DbConn, recipeIds: seq[int]): Table[int, seq[Ingredient]] =
   let placeholders = getPlaceholders(recipeIds.len)
@@ -131,12 +134,13 @@ proc getTags(dbConn: DbConn, recipeIds: seq[int]): Table[int, seq[Tag]] =
 
   result = tagMap
 
-proc getRecipeList*(recipeIds: seq[int]): seq[Recipe] =
+proc getRecipeList(recipeIds: seq[int]): seq[Recipe] =
   withDb dbConn:
     let ingredientMap = getIngredients(dbConn, recipeIds)
     let tagMap = getTags(dbConn, recipeIds)
 
-    let getRecipesQuery = sql"""
+    let placeholders = getPlaceholders(recipeIds.len)
+    let getRecipesQuery = sql("""
       SELECT
           r.id
         , r.title
@@ -145,10 +149,11 @@ proc getRecipeList*(recipeIds: seq[int]): seq[Recipe] =
         , r.link
         , r.servings
       FROM Recipes r
-    """
+      WHERE r.id IN ($1)
+    """.format(placeholders))
 
     var recipes: seq[Recipe] = @[]
-    for row in dbConn.fastRows(getRecipesQuery):
+    for row in dbConn.fastRows(getRecipesQuery, recipeIds.mapIt($it)):
       let currentId = row[0].parseInt
       let recipe = Recipe(
         id: currentId,
@@ -172,6 +177,11 @@ proc getAllRecipes*(): seq[Recipe] =
       recipeIds.add row[0].parseInt
     result = getRecipeList(recipeIds)
 
+proc queryForRecipes(dbConn: DbConn, query: SqlQuery, filter: string): seq[Recipe] =
+    var recipeIds: seq[int] = @[]
+    for row in dbConn.fastRows(query, filter):
+      recipeIds.add row[0].parseInt
+    result = getRecipeList(recipeIds)
 
 proc getRecipesByTitle*(filter: string): seq[Recipe] =
   withDb dbConn:
@@ -180,13 +190,26 @@ proc getRecipesByTitle*(filter: string): seq[Recipe] =
       SELECT
           id
       FROM Recipes
-      WHERE title like ?
+      WHERE title LIKE ?
     """
-    var recipeIds: seq[int] = @[]
-    for row in dbConn.fastRows(recipeQuery, formattedFilter):
-      recipeIds.add row[0].parseInt
-    echo recipeIds
-    result = getRecipeList(recipeIds)
+    result = queryForRecipes(dbConn, recipeQuery, formattedFilter)
+
+proc getRecipesByTag*(filter: string): seq[Recipe] =
+  withDb dbConn:
+    let formattedFilter: string = &"%{filter}%"
+    let tagQuery = sql"""
+      WITH FilteredTags AS (
+        SELECT
+            id
+          , name
+        FROM Tags t
+        WHERE name LIKE ?
+      )
+      SELECT DISTINCT rht.recipeId
+      FROM RecipeHasTag rht
+      INNER JOIN FilteredTags ft ON ft.id = rht.tagId 
+    """
+    result = queryForRecipes(dbConn, tagQuery, formattedFilter)
 
 proc insertRecipe*(recipe: Recipe) =
   withDb dbConn:

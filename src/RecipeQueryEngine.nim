@@ -33,7 +33,7 @@ proc searchRecipes(searchText: string, filterType: string) =
   of FilterType.title:
     recipes = getRecipesByTitle(searchText)
   of FilterType.tag:
-    echo "tag"
+    recipes = getRecipesByTag(searchText)
   of FilterType.ingredient:
     echo "ingredient"
   of FilterType.time:
