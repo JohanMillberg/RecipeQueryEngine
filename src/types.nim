@@ -1,26 +1,33 @@
 import std/[strformat, strutils, sequtils]
+import norm/model
 
 type
-  Ingredient* = object
-    id*: int
-    recipeId*: int
+  Ingredient* = ref object of Model
     name*: string
     amount*: int
     unit*: string
 
-  Tag* = object
-    id*: int
+  Tag* = ref object of Model
     name*: string
 
-  Recipe* = object
-    id*: int
+  Recipe* = ref object of Model
     title*: string
-    ingredients*: seq[Ingredient]
-    instructions*: seq[string]
+    instructions*: string
     link*: string
     preparationTime*: int
     servings*: int
-    tags*: seq[Tag]
+
+  RecipeHasTag* = ref object of Model
+    tag*: Tag
+    recipe*: Recipe
+
+  IngredientInRecipe* = ref object of Model
+    ingredient*: Ingredient
+    recipe*: Recipe
+
+  PrettyRecipe* = ref object of Recipe
+    ingredients*: seq[Ingredient] 
+    tags*: seq[Tag] 
 
   FilterType* = enum
     title = "title"
@@ -31,10 +38,10 @@ type
 proc `$`*(ingredient: Ingredient): string =
   result = &"{ingredient.amount} {ingredient.unit} {ingredient.name}"
 
-proc `$`*(recipe: Recipe): string =
+proc `$`*(recipe: PrettyRecipe): string =
   const
     Separator = " | "
-    IndentSize = 4
+    IndentSize = 6
     BulletPoint = "* "
 
   let ingredients = recipe.ingredients.mapIt($it)
@@ -48,11 +55,8 @@ proc `$`*(recipe: Recipe): string =
       &"(Id: {recipe.id})"
 
   let instructionString =
-    if recipe.instructions == @[]:
-      ""
-    else:
-      &"""Instructions:
-    {BulletPoint}{join(recipe.instructions, "\n" & indent & BulletPoint)}
+      &"""
+{indent}{BulletPoint}{join(recipe.instructions.splitLines, "\n" & indent & BulletPoint)}
       """
 
   let linkString =
@@ -67,8 +71,9 @@ proc `$`*(recipe: Recipe): string =
     Servings: {recipe.servings}
 
     Ingredients:
-    {BulletPoint}{join(ingredients, "\n" & indent & BulletPoint)}
-    {instructionString}
+{indent}{BulletPoint}{join(ingredients, "\n" & indent & BulletPoint)}
+    Instructions:
+{instructionString}
     {linkString}
     Tags: {join(tagNames, Separator)}
   """

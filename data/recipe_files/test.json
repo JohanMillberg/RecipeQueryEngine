@@ -1,9 +1,6 @@
 {
   "title": "Test Recipe",
-  "instructions": [
-    "Add food",
-    "Enjoy"
-  ],
+  "instructions": "Add food\nEnjoy",
   "link": "https://test_link.com/recipe",
   "preparationTime": 1000000,
   "servings": 2,

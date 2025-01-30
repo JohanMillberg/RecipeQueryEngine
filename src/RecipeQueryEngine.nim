@@ -3,14 +3,14 @@ import cligen
 import jsony
 import std/strutils
 
-proc printRecipes(recipes: seq[Recipe]) =
+proc printRecipes(recipes: seq[PrettyRecipe]) =
   for recipe in recipes:
     echo recipe
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 
-proc readRecipeFile(filePath: string): Recipe =
+proc readRecipeFile(filePath: string): PrettyRecipe =
   let content: string = readFile(filePath)
-  let recipe = content.fromJson(Recipe)
+  let recipe = content.fromJson(PrettyRecipe)
   return recipe
 
 # Add recipe
@@ -27,13 +27,13 @@ proc deleteRecipe(recipeId: int) =
 # Search recipes
 proc searchRecipes(searchText: string, filterType: string) =
   let filter = parseEnum[FilterType](filterType)
-  var recipes: seq[Recipe] = @[]
+  var recipes: seq[PrettyRecipe] = @[]
 
   case filter
   of FilterType.title:
-    recipes = getRecipesByTitle(searchText)
+    echo "title"
   of FilterType.tag:
-    recipes = getRecipesByTag(searchText)
+    echo "tag"
   of FilterType.ingredient:
     echo "ingredient"
   of FilterType.time:
@@ -45,7 +45,7 @@ proc searchRecipes(searchText: string, filterType: string) =
 proc listAllRecipes() =
   withTimer:
     let recipes = getAllRecipes()
-    printRecipes(recipes)
+    # printRecipes(recipes)
 
 when isMainModule:
   initializeDatabase()
