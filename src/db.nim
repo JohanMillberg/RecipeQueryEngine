@@ -51,6 +51,14 @@ proc getRecipesByTag*(filter: string): seq[Recipe] =
   withDb dbConn:
     discard
 
+proc getOrCreateTag(dbConn: DbConn, tagName: string): Tag =
+  if dbConn.count(Tag, cond="name = ?", params=dbValue(tagName)) == 0:
+    var newTag = Tag(name: tagName)
+    dbConn.insert(newTag)
+    result = newTag
+  else:
+    result = dbConn.select(Tag, cond="name = ?", params=dbValue(tagName))[0]
+
 proc insertRecipe*(prettyRecipe: PrettyRecipe) =
   withDb dbConn:
     var recipe = prettyRecipe.Recipe
@@ -67,10 +75,10 @@ proc insertRecipe*(prettyRecipe: PrettyRecipe) =
       dbConn.insert(ingredientInRecipe)
 
     for tag in prettyRecipe.tags.mitems:
-      dbConn.insert(tag)
+      let newTag: Tag = dbConn.getOrCreateTag(tag.name)
 
       var recipeHasTag = RecipeHasTag(
-        tag: tag,
+        tag: newTag,
         recipe: recipe
       )
 

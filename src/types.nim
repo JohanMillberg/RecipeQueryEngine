@@ -1,5 +1,5 @@
 import std/[strformat, strutils, sequtils]
-import norm/model
+import norm/[model, pragmas]
 
 type
   Ingredient* = ref object of Model
@@ -8,7 +8,7 @@ type
     unit*: string
 
   Tag* = ref object of Model
-    name*: string
+    name* {.unique.}: string
 
   Recipe* = ref object of Model
     title*: string
@@ -18,8 +18,8 @@ type
     servings*: int
 
   RecipeHasTag* = ref object of Model
-    tag*: Tag
-    recipe*: Recipe
+    tag* {.uniqueGroup.}: Tag
+    recipe* {.uniqueGroup.}: Recipe
 
   IngredientInRecipe* = ref object of Model
     ingredient*: Ingredient
