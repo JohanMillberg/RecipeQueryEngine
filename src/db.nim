@@ -1,4 +1,3 @@
-import std/[strutils, tables, sequtils, strformat]
 import std/json
 import norm/[sqlite, model]
 import ./types
@@ -45,7 +44,7 @@ proc getAllRecipes*(): seq[Recipe] =
 
 proc getRecipesByTitle*(filter: string): seq[Recipe] =
   withDb dbConn:
-    discard
+    result = dbConn.select(Recipe, cond="title = %?%", params=dbValue(filter))
 
 proc getRecipesByTag*(filter: string): seq[Recipe] =
   withDb dbConn:
@@ -88,4 +87,6 @@ proc insertRecipe*(prettyRecipe: PrettyRecipe) =
 
 proc deleteRecipeWithId*(recipeId: int) =
   withDb dbConn:
-    discard
+    var recipe = dbConn.select(Recipe, cond="id = ?", params=dbValue(recipeId))
+    dbConn.delete(recipe)
+
